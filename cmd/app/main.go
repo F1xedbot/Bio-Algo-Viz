@@ -341,6 +341,7 @@ func startBeeColony(ctx js.Value, screenWidth, screenHeight float64, initialConf
 			// prepare source data
 			topSources := make([]SourceInfo, 0)
 			for _, src := range hive.KnownFoodSources {
+				if src == nil { continue }
 				dist := math.Sqrt(math.Pow(hive.X-src.X, 2) + math.Pow(hive.Y-src.Y, 2))
 				fit := (src.Quality * float64(src.Quantity)) / (1.0 + dist)
 				topSources = append(topSources, SourceInfo{src.ID, fit, src.Quality})

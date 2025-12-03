@@ -559,6 +559,10 @@ func (h *BeeHive) storeInHive(src *FoodSource) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
+	if src == nil {
+		return
+	}
+
 	for _, known := range h.KnownFoodSources {
 		if known == src {
 			return
