@@ -86,6 +86,10 @@
         .source-rank { color: var(--text-dim); font-weight: bold; margin-right: 8px; }
         .source-fit { color: var(--accent-gold); font-family: monospace; }
         .source-high { border-left: 3px solid #0ff; } /* Highlight high quality */
+        .source-selected {
+            border: 1px solid var(--accent-gold);
+            background: rgba(255, 215, 0, 0.2);
+        }
 
         /* Top Bar Layout */
         .top-row { display: flex; justify-content: space-between; width: 100%; align-items: flex-start; }
@@ -393,7 +397,7 @@
     <script>
                                             const go = new Go();
         WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject).then(result => {
-            go.run(result.instance);
+
 
             setTimeout(() => {
                 if (window.switchAlgo) window.switchAlgo('bees');
@@ -436,8 +440,14 @@
             }
 
             window.selectSource = function (id) {
-                if (window.selectSource) {
-                    window.selectSource(id);
+                document.querySelectorAll('.source-item').forEach(el => el.classList.remove('source-selected'));
+                const el = document.getElementById('source-item-' + id);
+                if (el) el.classList.add('source-selected');
+
+                if (window.goSelectSource) {
+                    window.goSelectSource(id);
+                } else {
+                    console.warn("goSelectSource not ready");
                 }
             };
 
@@ -519,6 +529,8 @@
                     }
                 });
             }
+
+            go.run(result.instance);
         });
 
                 // --- Data Bridge: Called by GO ---
@@ -542,8 +554,9 @@
                         if (data.Sources) {
                         data.Sources.forEach((src, idx) => {
                             const highClass = src.Fitness > 20 ? 'source-high' : '';
+                            const selClass = src.ID === data.SelectedID ? 'source-selected' : '';
                             html += `
-                        <div class="source-item ${highClass}" onclick="window.selectSource(${src.ID})" style="cursor: pointer;">
+                        <div id="source-item-${src.ID}" class="source-item ${highClass} ${selClass}" onclick="window.selectSource(${src.ID})" style="cursor: pointer;">
                             <div><span class="source-rank">#${idx + 1}</span> <span style="color:#ccc">Q:${src.Quality.toFixed(1)}</span></div>
                             <div class="source-fit">${src.Fitness.toFixed(2)}</div>
                         </div>
