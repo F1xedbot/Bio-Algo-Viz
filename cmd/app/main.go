@@ -125,6 +125,15 @@ func startBeeColony(ctx js.Value, screenWidth, screenHeight float64, initialConf
 
 	grid := algos.NewSpatialGrid(simWidth, simHeight, config.GridCellSize)
 
+	selectedSourceID := -1
+
+	js.Global().Set("selectSource", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		if len(args) > 0 {
+			selectedSourceID = args[0].Int()
+		}
+		return nil
+	}))
+
 	var applyConfig js.Func
 	applyConfig = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		if len(args) > 0 {
@@ -234,6 +243,16 @@ func startBeeColony(ctx js.Value, screenWidth, screenHeight float64, initialConf
 			f := &foods[i]
 			ctx.Call("beginPath")
 			ctx.Call("arc", f.X, f.Y, f.Radius, 0, 2*math.Pi)
+			
+			// Highlight Selection
+			if i == selectedSourceID {
+				ctx.Set("shadowBlur", 30)
+				ctx.Set("shadowColor", "#00FFFF")
+				ctx.Set("strokeStyle", "#00FFFF")
+				ctx.Set("lineWidth", 6)
+				ctx.Call("stroke")
+				ctx.Set("shadowBlur", 0)
+			}
 			
 			// Draw Flower Patch
 			if f.Quantity > 0 {

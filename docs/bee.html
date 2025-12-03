@@ -435,6 +435,12 @@
                 }
             }
 
+            window.selectSource = function (id) {
+                if (window.selectSource) {
+                    window.selectSource(id);
+                }
+            };
+
             function bindSlider(id, key, labelId, isFloat = false) {
                 const el = document.getElementById(id);
                 const lbl = document.getElementById(labelId);
@@ -537,7 +543,7 @@
                         data.Sources.forEach((src, idx) => {
                             const highClass = src.Fitness > 20 ? 'source-high' : '';
                             html += `
-                        <div class="source-item ${highClass}">
+                        <div class="source-item ${highClass}" onclick="window.selectSource(${src.ID})" style="cursor: pointer;">
                             <div><span class="source-rank">#${idx + 1}</span> <span style="color:#ccc">Q:${src.Quality.toFixed(1)}</span></div>
                             <div class="source-fit">${src.Fitness.toFixed(2)}</div>
                         </div>
