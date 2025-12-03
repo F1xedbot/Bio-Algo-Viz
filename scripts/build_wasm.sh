@@ -1,6 +1,6 @@
 #!/bin/bash
 
-OUTPUT_DIR="web"
+OUTPUT_DIR="docs"
 
 echo "Building WASM..."
 
