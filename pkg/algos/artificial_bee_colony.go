@@ -94,6 +94,7 @@ type FoodSource struct {
 	MaxQuality   float64
 	MaxQuantity  int
 	RespawnTicks int
+	ID           int
 	Config       *ABCConfig
 	mu           sync.Mutex
 }
@@ -783,12 +784,15 @@ func SpawnFood(quantity int, width, height float64, beehive *BeeHive, config *AB
 			MaxQuality:   config.MaxQuality,
 			MaxQuantity:  quant,
 			RespawnTicks: 0,
+			ID:           -1, // set by caller
 			Config:       config,
 		}
 	}
 
 	for i := 0; i < quantity; i++ {
-		foods = append(foods, createFood())
+		f := createFood()
+		f.ID = i
+		foods = append(foods, f)
 	}
 
 	return foods, nil
