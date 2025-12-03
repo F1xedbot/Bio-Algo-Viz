@@ -103,7 +103,7 @@ type Bee struct {
 	Target        Coordinate
 	Home          *BeeHive
 	Goal          *FoodSource
-	Memory        FoodSource
+	Memory        *FoodSource
 	Speed         float64
 	PathDecayRate float64
 	Path          []Coordinate
@@ -195,7 +195,7 @@ func LevyStep(beta float64) float64 {
 }
 
 
-func (b *Bee) CalculateFitness(src FoodSource) float64 {
+func (b *Bee) CalculateFitness(src *FoodSource) float64 {
 	d := distance(b.Home.Coordinate, src.Coordinate)
 	return (src.Quality * float64(src.Quantity)) / (1.0 + d)
 }
@@ -220,7 +220,7 @@ func (f *FoodSource) Consume() bool {
 }
 
 func (b *Bee) PerformDance(onlookers []*Bee) {
-	if b.DanceTicks <= 0 {
+	if b.DanceTicks <= 0 || b.Memory == nil {
 		return
 	}
 
@@ -264,7 +264,7 @@ func (b *Bee) PerformDance(onlookers []*Bee) {
 		prob := b.DanceIntensity * attention * normFit
 
 		if rand.Float64() < prob {
-			ol.Goal = &b.Memory
+			ol.Goal = b.Memory
 			
 			angle := rand.Float64() * 2 * math.Pi
 			radius := rand.Float64() * 10.0
@@ -492,7 +492,7 @@ func (b *Bee) pickNextTarget() {
 
 		if b.ForageTicks <= 0 || batch.Quantity <= 0 || b.Nectar >= b.NectarCap {
 			if b.Nectar > b.Config.Epsilon {
-				b.Memory = *b.Goal
+				b.Memory = b.Goal
 				b.Home.storeInHive(b.Goal)
 			}
 			b.Target = b.Home.Coordinate
@@ -599,8 +599,8 @@ func (b *Bee) EmployedLocalSearch() {
 		return
 	}
 
-	currentFit := b.CalculateFitness(*b.Goal)
-	neighborFit := b.CalculateFitness(*neighbor)
+	currentFit := b.CalculateFitness(b.Goal)
+	neighborFit := b.CalculateFitness(neighbor)
 
 	idx := indexOf(b.Goal, b.Home.KnownFoodSources)
 
@@ -630,7 +630,7 @@ func (b *Bee) OnlookerSelectSource() {
 	fitnesses := make([]float64, count)
 
 	for i, src := range hive.KnownFoodSources {
-		fit := b.CalculateFitness(*src)
+		fit := b.CalculateFitness(src)
 		fitnesses[i] = fit
 		totalFitness += fit
 	}
