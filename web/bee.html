@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Artificial Bee Colony Visualization</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --glass-bg: rgba(20, 20, 30, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-main: #eee;
+            --text-dim: #aaa;
+            --accent-gold: #FFD700;
+            --accent-red: #FF4444;
+            --font-main: 'Inter', sans-serif;
+        }
+
+        body { margin: 0; overflow: hidden; background: #111; font-family: var(--font-main); }
+        
+        /* The Canvas sits in the back */
+        canvas { display: block; position: absolute; top: 0; left: 0; z-index: 1; }
+
+        /* The UI floats on top */
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10; pointer-events: none;
+            display: flex; flex-direction: column; justify-content: space-between;
+            padding: 20px; box-sizing: border-box;
+        }
+
+        /* --- Panels --- */
+        .panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 15px;
+            color: var(--text-main);
+            width: 280px;
+            pointer-events: auto; /* Re-enable clicks for buttons/scrolling */
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            margin-bottom: 10px;
+        }
+
+        .config-group {
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 10px;
+        }
+        .config-group:last-child { border-bottom: none; }
+        .config-group h3 {
+            margin: 0 0 8px 0;
+            font-size: 12px;
+            color: var(--accent-gold);
+            text-transform: uppercase;
+            opacity: 0.8;
+        }
+
+        .panel h2 { margin: 0 0 10px 0; font-size: 14px; text-transform: uppercase; color: var(--text-dim); letter-spacing: 1px; border-bottom: 1px solid var(--glass-border); padding-bottom: 5px; }
+
+        /* Stats Rows */
+        .stat-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px; }
+        .stat-val { font-weight: bold; font-family: monospace; font-size: 14px; }
+        .color-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+
+        /* --- Source List (Scrollable!) --- */
+        #source-list {
+            max-height: 200px; /* Limit height */
+            overflow-y: auto;  /* ENABLE SCROLLING */
+            padding-right: 5px;
+        }
+        
+        /* Custom Scrollbar styling */
+        #source-list::-webkit-scrollbar { width: 6px; }
+        #source-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+
+        .source-item {
+            background: rgba(255,255,255,0.05);
+            margin-bottom: 4px; padding: 8px; border-radius: 6px;
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 12px;
+        }
+        .source-rank { color: var(--text-dim); font-weight: bold; margin-right: 8px; }
+        .source-fit { color: var(--accent-gold); font-family: monospace; }
+        .source-high { border-left: 3px solid #0ff; } /* Highlight high quality */
+
+        /* Top Bar Layout */
+        .top-row { display: flex; justify-content: space-between; width: 100%; align-items: flex-start; }
+
+        /* Container for all stats panels */
+        #stats-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 90vh; /* Prevent overflowing screen height */
+            pointer-events: none; /* Wrapper passes clicks */
+        }
+        #stats-container > * {
+            pointer-events: auto; /* Children capture clicks */
+        }
+
+        /* Scrollable Config Panel */
+        .config-scroll-panel {
+            max-height: 400px; /* Fixed height for scrolling */
+            overflow-y: auto;
+            padding-right: 5px; /* Space for scrollbar */
+        }
+        .config-scroll-panel::-webkit-scrollbar { width: 6px; }
+        .config-scroll-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+
+        /* Manual Overlay */
+        #manual-overlay {
+            display: none; /* Hidden by default */
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        #manual-content {
+            background: rgba(20, 20, 25, 0.9);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 30px;
+            width: 80%;
+            max-width: 800px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            color: #eee;
+            font-family: 'Inter', sans-serif;
+            position: relative;
+        }
+        #manual-content h2 { color: var(--accent-gold); margin-top: 0; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px; }
+        #manual-content h3 { color: var(--accent-blue); margin-top: 20px; margin-bottom: 10px; }
+        #manual-content p { line-height: 1.6; color: #ccc; margin-bottom: 15px; }
+        #manual-content dl { display: grid; grid-template-columns: 180px 1fr; gap: 10px 20px; align-items: baseline; }
+        #manual-content dt { font-weight: bold; color: var(--accent-gold); text-align: right; }
+        #manual-content dd { margin: 0; color: #bbb; }
+        #manual-close {
+            position: absolute;
+            top: 15px; right: 20px;
+            background: none; border: none;
+            color: #fff; font-size: 24px; cursor: pointer;
+            opacity: 0.7;
+        }
+        #manual-close:hover { opacity: 1; color: var(--accent-red); }
+        
+        /* Scrollbar for manual */
+        #manual-content::-webkit-scrollbar { width: 8px; }
+        #manual-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <!-- Toggle Button -->
+        <div style="pointer-events: auto; margin-bottom: 10px;">
+            <div style="display: flex; gap: 10px;">
+                <button id="toggle-ui"
+                    style="background: rgba(0,0,0,0.6); border: 1px solid var(--glass-border); color: #fff; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-family: 'Inter', sans-serif;">Hide
+                    Stats</button>
+                <button id="btn-manual"
+                    style="background: rgba(0,0,0,0.6); border: 1px solid var(--glass-border); color: var(--accent-gold); padding: 8px 16px; border-radius: 20px; cursor: pointer; font-family: 'Inter', sans-serif;">Manual</button>
+            </div>
+        </div>
+    
+        <div id="stats-container">
+            <div class="top-row">
+                <div class="panel">
+                    <h2>Simulation Config</h2>
+                    <div class="stat-row"><span>Population</span> <span class="stat-val" id="val-pop">0</span></div>
+                    <div class="stat-row"><span>Food Sources</span> <span class="stat-val" id="val-food">0</span></div>
+                    <div class="stat-row"><span>Grid Cell</span> <span class="stat-val" id="val-grid">0.0</span></div>
+                </div>
+    
+                <div class="panel">
+                    <h2>Colony Status</h2>
+                    <div class="stat-row">
+                        <span><span class="color-dot" style="background:#FFD700"></span>Employed</span>
+                        <span class="stat-val" id="val-employed">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span><span class="color-dot" style="background:#FF8C00"></span>Onlooker</span>
+                        <span class="stat-val" id="val-onlooker">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span><span class="color-dot" style="background:#FFF"></span>Scout</span>
+                        <span class="stat-val" id="val-scout">0</span>
+                    </div>
+                    <div style="border-top: 1px solid var(--glass-border); margin: 8px 0;"></div>
+                    <div class="stat-row">
+                        <span>Hive Honey</span>
+                        <span class="stat-val" id="val-honey" style="color:#33FF33">0.00</span>
+                    </div>
+                </div>
+            </div>
+    
+            <!-- Config Panel -->
+            <div class="panel config-scroll-panel" style="width: 300px;">
+                <h2>Configuration</h2>
+    
+            <!-- Group: Colony -->
+            <div class="config-group">
+                <h3>Colony Structure</h3>
+                <div class="config-item">
+                    <label>Population: <span id="lbl-pop">100</span></label>
+                    <input type="range" id="cfg-pop" min="10" max="500" value="100">
+                </div>
+                <div class="config-item">
+                    <label>Food Sources: <span id="lbl-food">25</span></label>
+                    <input type="range" id="cfg-food" min="5" max="200" value="25">
+                </div>
+                <div class="config-item">
+                    <label>Max Attempts: <span id="lbl-attempts">50</span></label>
+                    <input type="range" id="cfg-attempts" min="10" max="100" value="50">
+                </div>
+                </div>
+
+            <!-- Group: Movement -->
+            <div class="config-group">
+                <h3>Movement & Search</h3>
+                <div class="config-item">
+                    <label>Employed Speed: <span id="lbl-speed-emp">0.8</span></label>
+                    <input type="range" id="cfg-speed-emp" min="0.1" max="5.0" step="0.1" value="0.8">
+                </div>
+                <div class="config-item">
+                    <label>Onlooker Speed: <span id="lbl-speed-onl">0.4</span></label>
+                    <input type="range" id="cfg-speed-onl" min="0.1" max="5.0" step="0.1" value="0.4">
+                </div>
+                <div class="config-item">
+                    <label>Scout Speed: <span id="lbl-speed-sct">1.6</span></label>
+                    <input type="range" id="cfg-speed-sct" min="0.1" max="5.0" step="0.1" value="1.6">
+                </div>
+                <div class="config-item">
+                    <label>Jitter (Randomness): <span id="lbl-jitter">1.5</span></label>
+                    <input type="range" id="cfg-jitter" min="0.0" max="5.0" step="0.1" value="1.5">
+                    </div>
+                    <div class="config-item">
+                        <label>Levy Beta (Flight): <span id="lbl-levy">1.5</span></label>
+                        <input type="range" id="cfg-levy" min="1.0" max="2.0" step="0.1" value="1.5">
+                    </div>
+                    </div>
+                    
+                    <!-- Group: Foraging -->
+                    <div class="config-group">
+                        <h3>Foraging & Resources</h3>
+                        <div class="config-item">
+                    <label>Respawn Scale: <span id="lbl-respawn">20.0</span></label>
+                    <input type="range" id="cfg-respawn" min="1.0" max="50.0" step="1.0" value="20.0">
+                </div>
+                <div class="config-item">
+                    <label>Nectar Cap Base: <span id="lbl-nectar">50.0</span></label>
+                    <input type="range" id="cfg-nectar" min="10.0" max="200.0" step="5.0" value="50.0">
+                </div>
+                <div class="config-item">
+                    <label>Max Quality: <span id="lbl-max-qual">10.0</span></label>
+                    <input type="range" id="cfg-max-qual" min="1.0" max="50.0" step="1.0" value="10.0">
+                </div>
+                <div class="config-item">
+                    <label>Max Food Radius: <span id="lbl-max-rad">40.0</span></label>
+                    <input type="range" id="cfg-max-rad" min="10.0" max="100.0" step="5.0" value="40.0">
+                </div>
+                </div>
+                
+                <!-- Group: Communication -->
+                <div class="config-group">
+                    <h3>Dance & Communication</h3>
+                    <div class="config-item">
+                        <label>
+                            <input type="checkbox" id="cfg-dance-bool" checked>
+                            Dance Affects Onlookers Only
+                        </label>
+                    </div>
+                    <div class="config-item">
+                        <label>Dance Intensity Base: <span id="lbl-dance-base">0.2</span></label>
+                        <input type="range" id="cfg-dance-base" min="0.0" max="1.0" step="0.05" value="0.2">
+                    </div>
+                    <div class="config-item">
+                        <label>Dance Intensity Scale: <span id="lbl-dance-scale">0.8</span></label>
+                        <input type="range" id="cfg-dance-scale" min="0.0" max="2.0" step="0.1" value="0.8">
+                    </div>
+                    <div class="config-item">
+                        <label>Attention Decay: <span id="lbl-attn">0.2</span></label>
+                        <input type="range" id="cfg-attn" min="0.01" max="1.0" step="0.01" value="0.2">
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                    <button id="btn-apply"
+                        style="flex: 1; background: var(--accent-gold); border: none; padding: 8px; border-radius: 6px; color: #000; font-weight: bold; cursor: pointer;">Apply</button>
+                    <button id="btn-restart"
+                        style="flex: 1; background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); padding: 8px; border-radius: 6px; color: #fff; cursor: pointer;">Restart</button>
+                </div>
+        </div>
+    
+            <div class="panel" style="width: 300px;">
+                <h2>Best Known Sources</h2>
+                <div id="source-list">
+                    <div style="color: #666; font-style: italic; text-align: center;">Waiting for data...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <canvas id="viz-canvas"></canvas>
+
+    <script src="wasm_exec.js"></script>
+    <!-- Manual Overlay -->
+    <div id="manual-overlay">
+        <div id="manual-content">
+            <button id="manual-close">&times;</button>
+            <h2>Simulation Manual</h2>
+            <p>Welcome to the Artificial Bee Colony (ABC) simulation. This visualization demonstrates how a swarm of bees
+                optimizes foraging through decentralized communication.</p>
+    
+            <p><i>Onlooker bee is orange and Employed bee is yellow.</i></p>
+    
+            <h3>Colony Structure</h3>
+            <dl>
+                <dt>Population</dt>
+                <dd>Total number of bees in the colony.</dd>
+                <dt>Food Sources</dt>
+                <dd>Number of flower patches available in the environment.</dd>
+                <dt>Max Attempts</dt>
+                <dd>How many times a bee will try to improve a food source before abandoning it.</dd>
+            </dl>
+    
+            <h3>Movement & Search</h3>
+            <dl>
+                <dt>Employed Speed</dt>
+                <dd>Flight speed of bees currently assigned to a food source.</dd>
+                <dt>Onlooker Speed</dt>
+                <dd>Flight speed of bees recruited from the hive.</dd>
+                <dt>Scout Speed</dt>
+                <dd>Flight speed of bees searching for new random sources.</dd>
+                <dt>Jitter</dt>
+                <dd>Randomness added to movement paths. Higher values mean more erratic flight.</dd>
+                <dt>Levy Beta</dt>
+                <dd>Controls the Levy Flight distribution for scouts. Lower values (near 1.0) create longer "jumps".</dd>
+            </dl>
+    
+            <h3>Foraging & Resources</h3>
+            <dl>
+                <dt>Respawn Scale</dt>
+                <dd>Controls how fast flowers grow back. Higher values = Slower regrowth.</dd>
+                <dt>Nectar Cap Base</dt>
+                <dd>Base capacity of a flower patch. Higher values mean more food per patch.</dd>
+                <dt>Max Quality</dt>
+                <dd>Maximum potential quality of a food source. Higher quality attracts more bees.</dd>
+                <dt>Max Food Radius</dt>
+                <dd>Physical size of the flower patches.</dd>
+            </dl>
+    
+            <h3>Dance & Communication</h3>
+            <dl>
+                <dt>Dance Intensity</dt>
+                <dd>How strongly a waggle dance influences other bees.</dd>
+                <dt>Attention Decay</dt>
+                <dd>How quickly a bee loses interest in a dance if it's far away.</dd>
+                <dt>Onlooker Only</dt>
+                <dd>If checked, dances only recruit idle bees (Onlookers). If unchecked, they can steal Employed bees.</dd>
+            </dl>
+
+            <h3>Interesting Facts</h3>
+            <p>
+                Did you know?
+                <ul>
+                    <li><b>Waggle Dance:</b> Honey bees perform a "waggle dance" to communicate the direction and distance of food sources to their hive mates. The angle of the dance relative to the vertical represents the angle of the food source relative to the sun.</li>
+                    <li><b>Energy Efficiency:</b> A bee may fly up to 5 miles to find food, but they are incredibly energy efficient. A single ounce of honey would fuel a bee's flight around the world!</li>
+                    <li><b>Swarm Intelligence:</b> No single bee runs the colony. Decisions are made collectively through local interactions, a principle known as swarm intelligence, which this algorithm mimics.</li>
+                </ul>
+            </p>
+            <p style="font-size: 0.9em; color: var(--text-dim);">
+                Learn more about <a href="https://en.wikipedia.org/wiki/Waggle_dance" target="_blank" style="color: var(--accent-gold);">Waggle Dance</a> and <a href="https://en.wikipedia.org/wiki/Swarm_intelligence" target="_blank" style="color: var(--accent-gold);">Swarm Intelligence</a>.
+            </p>
+        </div>
+    </div>
+
+    <script>
+                                            const go = new Go();
+        WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject).then(result => {
+            go.run(result.instance);
+
+            setTimeout(() => {
+                if (window.switchAlgo) window.switchAlgo('bees');
+            }, 500);
+
+            const configState = {
+                PopulationSize: 80,
+                FoodCount: 20,
+                MaxAttempts: 50,
+
+                SpeedEmployed: 0.8,
+                SpeedOnlooker: 0.4,
+                SpeedScout: 1.6,
+                Jitter: 1.5,
+                LevyBeta: 1.5,
+
+                RespawnScale: 20.0,
+                NectarCapBase: 50.0,
+                NectarCapVar: 50.0,
+                MaxQuality: 10.0,
+                MaxFoodRadius: 40.0,
+
+                DanceAffectsOnlookerOnly: true,
+                DanceIntensityBase: 0.2,
+                DanceIntensityScale: 0.8,
+                DanceTicksBase: 50,
+                DanceTicksVar: 20,
+                AttentionDecay: 0.2,
+
+                SearchRadiusEmployed: 20.0,
+                SearchRadiusOnlooker: 20.0,
+                SearchRadiusScout: 40.0,
+                PathDecayRate: 20.0
+            };
+
+            function applyConfig() {
+                if (window.applyConfig) {
+                    window.applyConfig(JSON.stringify(configState));
+                }
+            }
+
+            function bindSlider(id, key, labelId, isFloat = false) {
+                const el = document.getElementById(id);
+                const lbl = document.getElementById(labelId);
+                if (!el || !lbl) return;
+
+                el.addEventListener('input', (e) => {
+                    const val = isFloat ? parseFloat(e.target.value) : parseInt(e.target.value);
+                    configState[key] = val;
+                    // Format float for display
+                    lbl.textContent = isFloat ? val.toFixed(2) : val;
+                });
+            }
+
+            function bindCheckbox(id, key) {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.addEventListener('change', (e) => {
+                    configState[key] = e.target.checked;
+                });
+            }
+
+            // Colony
+            bindSlider('cfg-pop', 'PopulationSize', 'lbl-pop');
+            bindSlider('cfg-food', 'FoodCount', 'lbl-food');
+            bindSlider('cfg-attempts', 'MaxAttempts', 'lbl-attempts');
+
+            // Movement
+            bindSlider('cfg-speed-emp', 'SpeedEmployed', 'lbl-speed-emp', true);
+            bindSlider('cfg-speed-onl', 'SpeedOnlooker', 'lbl-speed-onl', true);
+            bindSlider('cfg-speed-sct', 'SpeedScout', 'lbl-speed-sct', true);
+            bindSlider('cfg-jitter', 'Jitter', 'lbl-jitter', true);
+            bindSlider('cfg-levy', 'LevyBeta', 'lbl-levy', true);
+
+            // Foraging
+            bindSlider('cfg-respawn', 'RespawnScale', 'lbl-respawn', true);
+            bindSlider('cfg-nectar', 'NectarCapBase', 'lbl-nectar', true);
+            bindSlider('cfg-max-qual', 'MaxQuality', 'lbl-max-qual', true);
+            bindSlider('cfg-max-rad', 'MaxFoodRadius', 'lbl-max-rad', true);
+
+            // Communication
+            bindCheckbox('cfg-dance-bool', 'DanceAffectsOnlookerOnly');
+            bindSlider('cfg-dance-base', 'DanceIntensityBase', 'lbl-dance-base', true);
+            bindSlider('cfg-dance-scale', 'DanceIntensityScale', 'lbl-dance-scale', true);
+            bindSlider('cfg-attn', 'AttentionDecay', 'lbl-attn', true);
+
+            // Buttons
+            const btnApply = document.getElementById('btn-apply');
+            const btnRestart = document.getElementById('btn-restart');
+
+            if (btnApply) {
+                btnApply.addEventListener('click', () => {
+                    applyConfig();
+                });
+            }
+
+            if (btnRestart) {
+                btnRestart.addEventListener('click', () => {
+
+                    applyConfig();
+                });
+            }
+
+            // Toggle UI
+            const toggleBtn = document.getElementById('toggle-ui');
+            const statsContainer = document.getElementById('stats-container');
+            if (toggleBtn && statsContainer) {
+                toggleBtn.addEventListener('click', () => {
+                    // Check computed style or inline style
+                    const currentDisplay = window.getComputedStyle(statsContainer).display;
+                    if (currentDisplay === 'none') {
+                        statsContainer.style.display = 'flex';
+                        toggleBtn.textContent = 'Hide Stats';
+                    } else {
+                        statsContainer.style.display = 'none';
+                        toggleBtn.textContent = 'Show Stats';
+                    }
+                });
+            }
+        });
+
+                // --- Data Bridge: Called by GO ---
+                window.updateUI = function (jsonString) {
+                    try {
+                        const data = JSON.parse(jsonString);
+
+                        // Update Simple Stats
+                        document.getElementById('val-pop').textContent = data.Pop;
+                        document.getElementById('val-food').textContent = data.FoodCount;
+                        document.getElementById('val-grid').textContent = data.GridSize.toFixed(1);
+
+                        document.getElementById('val-employed').textContent = data.Employed;
+                        document.getElementById('val-onlooker').textContent = data.Onlooker;
+                        document.getElementById('val-scout').textContent = data.Scout;
+                        document.getElementById('val-honey').textContent = data.Honey.toFixed(2);
+
+                        // Update List
+                        const list = document.getElementById('source-list');
+                        let html = '';
+                        if (data.Sources) {
+                        data.Sources.forEach((src, idx) => {
+                            const highClass = src.Fitness > 20 ? 'source-high' : '';
+                            html += `
+                        <div class="source-item ${highClass}">
+                            <div><span class="source-rank">#${idx + 1}</span> <span style="color:#ccc">Q:${src.Quality.toFixed(1)}</span></div>
+                            <div class="source-fit">${src.Fitness.toFixed(2)}</div>
+                        </div>
+                    `;
+                        });
+                        }
+                        list.innerHTML = html;
+
+                } catch (e) { console.error("UI Update Error", e); }
+                    // Manual Overlay Logic
+                    const btnManual = document.getElementById('btn-manual');
+                    const manualOverlay = document.getElementById('manual-overlay');
+                    const manualClose = document.getElementById('manual-close');
+
+                    if (btnManual && manualOverlay && manualClose) {
+                        btnManual.addEventListener('click', () => {
+                            manualOverlay.style.display = 'flex';
+                        });
+
+                        manualClose.addEventListener('click', () => {
+                            manualOverlay.style.display = 'none';
+                        });
+
+                        manualOverlay.addEventListener('click', (e) => {
+                            if (e.target === manualOverlay) {
+                                manualOverlay.style.display = 'none';
+                            }
+                        });
+                    }
+                };
+    </script>
+</body>
+</html>

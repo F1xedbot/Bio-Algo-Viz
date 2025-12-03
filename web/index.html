@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bio-Algo Visualization</title>
+    <style>
+        :root {
+            --bg-color: #111;
+            --card-bg: rgba(30, 30, 40, 0.8);
+            --text-main: #eee;
+            --text-dim: #aaa;
+            --accent-gold: #FFD700;
+            --accent-blue: #4488FF;
+            --hover-bg: rgba(50, 50, 60, 0.9);
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        h1 {
+            margin-bottom: 40px;
+            font-weight: 300;
+            letter-spacing: 2px;
+            color: var(--text-main);
+        }
+
+        .container {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            width: 280px;
+            height: 320px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.2s, background 0.2s, box-shadow 0.2s;
+            text-decoration: none;
+            color: var(--text-main);
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            background: var(--hover-bg);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        .title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .desc {
+            font-size: 14px;
+            color: var(--text-dim);
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        .coming-soon {
+            opacity: 0.7;
+        }
+        
+        /* Modal for Coming Soon */
+        #modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            backdrop-filter: blur(5px);
+        }
+        .modal-content {
+            background: #222;
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid #444;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        .modal-btn {
+            margin-top: 20px;
+            padding: 8px 20px;
+            background: var(--accent-blue);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .modal-btn:hover { background: #3377EE; }
+
+    </style>
+</head>
+<body>
+
+    <h1>BIO-ALGO VISUALIZATION</h1>
+
+    <div class="container">
+        <!-- Bee Colony Card -->
+        <a href="bee.html" class="card">
+            <div class="icon">🐝</div>
+            <div class="title" style="color: var(--accent-gold);">Artificial Bee Colony</div>
+            <div class="desc">Simulate foraging behavior and swarm intelligence optimization.</div>
+        </a>
+
+        <!-- Ant Colony Card -->
+        <div class="card coming-soon" onclick="showModal()">
+            <div class="icon">🐜</div>
+            <div class="title" style="color: #FF6666;">Ant Colony</div>
+            <div class="desc">Trail laying and pheromone-based pathfinding simulation.</div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal" onclick="hideModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h2 style="margin-top: 0;">Coming Soon</h2>
+            <p>The Ant Colony algorithm is currently under development.</p>
+            <button class="modal-btn" onclick="hideModal()">Close</button>
+        </div>
+    </div>
+
+    <script>
+        function showModal() {
+            document.getElementById('modal').style.display = 'flex';
+        }
+        function hideModal() {
+            document.getElementById('modal').style.display = 'none';
+        }
+    </script>
+
+</body>
+</html>
