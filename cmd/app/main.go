@@ -94,7 +94,7 @@ func handleAlgoSwitch(name string) {
 	switch name {
 	case "bees":
 		config := algos.DefaultABCConfig()
-		startBeeColony(ctx, width, height, &config, 80, 20)
+		startBeeColony(ctx, width, height, &config, 100, 25)
 	}
 }
 
