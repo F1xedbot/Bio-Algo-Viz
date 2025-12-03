@@ -25,6 +25,7 @@ type UIUpdate struct {
 	Scout     int
 	Honey     float64
 	Sources   []SourceInfo
+	SelectedID int
 }
 
 type SourceInfo struct {
@@ -127,12 +128,15 @@ func startBeeColony(ctx js.Value, screenWidth, screenHeight float64, initialConf
 
 	selectedSourceID := -1
 
-	js.Global().Set("selectSource", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+	var selectSourceFunc js.Func
+	selectSourceFunc = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		if len(args) > 0 {
-			selectedSourceID = args[0].Int()
+			id := args[0].Int()
+			selectedSourceID = id
 		}
 		return nil
-	}))
+	})
+	js.Global().Set("goSelectSource", selectSourceFunc)
 
 	var applyConfig js.Func
 	applyConfig = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
@@ -187,6 +191,7 @@ func startBeeColony(ctx js.Value, screenWidth, screenHeight float64, initialConf
 	stopCurrentAlgo = func() { 
 		running = false
 		applyConfig.Release()
+		selectSourceFunc.Release()
 	}
 	
 	frameCount := 0
@@ -245,11 +250,22 @@ func startBeeColony(ctx js.Value, screenWidth, screenHeight float64, initialConf
 			ctx.Call("arc", f.X, f.Y, f.Radius, 0, 2*math.Pi)
 			
 			// Highlight Selection
-			if i == selectedSourceID {
+			if f.ID == selectedSourceID {
+				// Draw line from hive
+				ctx.Call("beginPath")
+				ctx.Call("moveTo", hive.X, hive.Y)
+				ctx.Call("lineTo", f.X, f.Y)
+				ctx.Set("strokeStyle", "rgba(0, 255, 255, 0.3)")
+				ctx.Set("lineWidth", 2)
+				ctx.Call("stroke")
+
+				// Draw Ring
+				ctx.Call("beginPath")
+				ctx.Call("arc", f.X, f.Y, f.Radius + 5, 0, 2*math.Pi)
 				ctx.Set("shadowBlur", 30)
 				ctx.Set("shadowColor", "#00FFFF")
 				ctx.Set("strokeStyle", "#00FFFF")
-				ctx.Set("lineWidth", 6)
+				ctx.Set("lineWidth", 3)
 				ctx.Call("stroke")
 				ctx.Set("shadowBlur", 0)
 			}
@@ -321,13 +337,13 @@ func startBeeColony(ctx js.Value, screenWidth, screenHeight float64, initialConf
 		}
 		drawParticles(ctx)	
 
-		if frameCount % 10 == 0 {
+		if frameCount % 30 == 0 {
 			// prepare source data
 			topSources := make([]SourceInfo, 0)
-			for i, src := range hive.KnownFoodSources {
+			for _, src := range hive.KnownFoodSources {
 				dist := math.Sqrt(math.Pow(hive.X-src.X, 2) + math.Pow(hive.Y-src.Y, 2))
 				fit := (src.Quality * float64(src.Quantity)) / (1.0 + dist)
-				topSources = append(topSources, SourceInfo{i, fit, src.Quality})
+				topSources = append(topSources, SourceInfo{src.ID, fit, src.Quality})
 			}
 			sort.Slice(topSources, func(i, j int) bool { return topSources[i].Fitness > topSources[j].Fitness })
 
@@ -340,6 +356,7 @@ func startBeeColony(ctx js.Value, screenWidth, screenHeight float64, initialConf
 				Scout:     roleCounts["scout"],
 				Honey:     hive.HoneyCap,
 				Sources:   topSources,
+				SelectedID: selectedSourceID,
 			}
 
 			jsonData, _ := json.Marshal(uiData)
