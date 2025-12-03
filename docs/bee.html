@@ -257,18 +257,26 @@
                         <label>Levy Beta (Flight): <span id="lbl-levy">1.5</span></label>
                         <input type="range" id="cfg-levy" min="1.0" max="2.0" step="0.1" value="1.5">
                     </div>
+                <div class="config-item">
+                    <label>Employed Wander Limit: <span id="lbl-wander-emp">120</span></label>
+                    <input type="range" id="cfg-wander-emp" min="10" max="200" step="5" value="120">
+                </div>
+                <div class="config-item">
+                    <label>Scout Wander Limit: <span id="lbl-wander-sct">90</span></label>
+                    <input type="range" id="cfg-wander-sct" min="10" max="200" step="5" value="90">
+                </div>
                     </div>
                     
                     <!-- Group: Foraging -->
                     <div class="config-group">
                         <h3>Foraging & Resources</h3>
                         <div class="config-item">
-                    <label>Respawn Scale: <span id="lbl-respawn">20.0</span></label>
-                    <input type="range" id="cfg-respawn" min="1.0" max="50.0" step="1.0" value="20.0">
+                    <label>Respawn Scale: <span id="lbl-respawn">30.0</span></label>
+                    <input type="range" id="cfg-respawn" min="1.0" max="50.0" step="1.0" value="30.0">
                 </div>
                 <div class="config-item">
-                    <label>Nectar Cap Base: <span id="lbl-nectar">50.0</span></label>
-                    <input type="range" id="cfg-nectar" min="10.0" max="200.0" step="5.0" value="50.0">
+                    <label>Nectar Cap Base: <span id="lbl-nectar">30.0</span></label>
+                    <input type="range" id="cfg-nectar" min="10.0" max="200.0" step="5.0" value="30.0">
                 </div>
                 <div class="config-item">
                     <label>Max Quality: <span id="lbl-max-qual">10.0</span></label>
@@ -285,7 +293,7 @@
                     <h3>Dance & Communication</h3>
                     <div class="config-item">
                         <label>
-                            <input type="checkbox" id="cfg-dance-bool" checked>
+                            <input type="checkbox" id="cfg-dance-bool">
                             Dance Affects Onlookers Only
                         </label>
                     </div>
@@ -331,7 +339,7 @@
             <p>Welcome to the Artificial Bee Colony (ABC) simulation. This visualization demonstrates how a swarm of bees
                 optimizes foraging through decentralized communication.</p>
     
-            <p><i>Onlooker bee is orange and Employed bee is yellow.</i></p>
+            <p><i>Onlooker bee is orange, Employed bee is yellow and Scout bee is white.</i></p>
     
             <h3>Colony Structure</h3>
             <dl>
@@ -414,13 +422,16 @@
                 Jitter: 1.5,
                 LevyBeta: 1.5,
 
-                RespawnScale: 20.0,
-                NectarCapBase: 50.0,
-                NectarCapVar: 50.0,
+                RespawnScale: 30.0,
+                NectarCapBase: 30.0,
+                NectarCapVar: 10.0,
+                EmployedWanderLimit: 120,
+                ScoutWanderLimit: 90,
+                
                 MaxQuality: 10.0,
                 MaxFoodRadius: 40.0,
 
-                DanceAffectsOnlookerOnly: true,
+                DanceAffectsOnlookerOnly: false,
                 DanceIntensityBase: 0.2,
                 DanceIntensityScale: 0.8,
                 DanceTicksBase: 50,
@@ -482,7 +493,10 @@
             bindSlider('cfg-speed-onl', 'SpeedOnlooker', 'lbl-speed-onl', true);
             bindSlider('cfg-speed-sct', 'SpeedScout', 'lbl-speed-sct', true);
             bindSlider('cfg-jitter', 'Jitter', 'lbl-jitter', true);
+            bindSlider('cfg-jitter', 'Jitter', 'lbl-jitter', true);
             bindSlider('cfg-levy', 'LevyBeta', 'lbl-levy', true);
+            bindSlider('cfg-wander-emp', 'EmployedWanderLimit', 'lbl-wander-emp');
+            bindSlider('cfg-wander-sct', 'ScoutWanderLimit', 'lbl-wander-sct');
 
             // Foraging
             bindSlider('cfg-respawn', 'RespawnScale', 'lbl-respawn', true);

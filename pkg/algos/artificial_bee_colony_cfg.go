@@ -32,6 +32,8 @@ type ABCConfig struct {
 	PathDecayRate        float64
 	NectarCapBase        float64
 	NectarCapVar         float64
+	EmployedWanderLimit  int
+	ScoutWanderLimit     int
 
 	// Food Source
 	MaxFoodRadius float64
@@ -49,15 +51,15 @@ func DefaultABCConfig() ABCConfig {
 		Epsilon:      1e-9,
 
 		RespawnBaseTime: 500.0,
-		RespawnScale:    20.0,
+		RespawnScale:    30.0,
 
 		DanceIntensityBase:  0.2,
-		DanceIntensityScale: 0.8,
+		DanceIntensityScale: 1.0,
 		DanceTicksBase:      50,
 		DanceTicksVar:       20,
 		Jitter:              1.5,
-		AttentionDecay:      0.2,
-		DanceAffectsOnlookerOnly: true,
+		AttentionDecay:      0.01,
+		DanceAffectsOnlookerOnly: false,
 
 		SpeedEmployed:        0.8,
 		SpeedOnlooker:        0.4, 
@@ -68,8 +70,10 @@ func DefaultABCConfig() ABCConfig {
 		SearchRadiusScout:    40.0, 
 
 		PathDecayRate: 20.0,
-		NectarCapBase: 50.0,
-		NectarCapVar:  50.0,
+		NectarCapBase: 30.0,
+		NectarCapVar:  10.0,
+		EmployedWanderLimit: 120,
+		ScoutWanderLimit:    90,
 
 		MaxFoodRadius: 40.0,
 		MaxQuality:    10.0,

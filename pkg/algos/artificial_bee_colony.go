@@ -119,6 +119,10 @@ type Bee struct {
 	DanceTicks     int
 	DanceIntensity float64
 
+	// Wandering Logic
+	WanderTicks     int
+	NeedSignalDance bool
+
 	Direction float64
 	MapWidth  float64
 	MapHeight float64
@@ -221,14 +225,15 @@ func (f *FoodSource) Consume() bool {
 }
 
 func (b *Bee) PerformDance(onlookers []*Bee) {
-	if b.DanceTicks <= 0 || b.Memory == nil {
+	if b.DanceTicks <= 0 || (b.Memory == nil && !b.NeedSignalDance) {
+		b.DanceTicks = 0
 		return
 	}
 
-	// if b.Memory.Quantity <= 0 {
-	// 	b.DanceTicks = 0
-	// 	return
-	// }
+	if b.Memory != nil && b.Memory.Quantity <= 0 {
+		b.DanceTicks = 0
+		return
+	}
 
 	// calculate intensity
 	b.DanceIntensity = b.Config.DanceIntensityBase + b.Config.DanceIntensityScale*(b.Nectar/b.NectarCap)
@@ -236,10 +241,36 @@ func (b *Bee) PerformDance(onlookers []*Bee) {
 		b.DanceIntensity = 1.0
 	}
 
+	// Scout has larger base intensity
+	if b.Role == "scout" {
+		b.DanceIntensity += 0.2
+		if b.DanceIntensity > 1.0 {
+			b.DanceIntensity = 1.0
+		}
+	}
+
 	// jitter movement
 	jitter := b.Config.Jitter
 	b.X += (rand.Float64()*jitter*2 - jitter)
 	b.Y += (rand.Float64()*jitter*2 - jitter)
+
+	// signal dance logic
+	if b.NeedSignalDance {
+		b.Home.mu.Lock()
+		count := len(b.Home.KnownFoodSources)
+		if count > 0 {
+			src := b.Home.KnownFoodSources[rand.Intn(count)]
+			if src != nil {
+				b.Memory = src
+			}
+		}
+		b.Home.mu.Unlock()
+	}
+
+	if b.Memory == nil {
+		b.DanceTicks = 0
+		return
+	}
 
 	// recruit logic
 	for _, ol := range onlookers {
@@ -260,9 +291,16 @@ func (b *Bee) PerformDance(onlookers []*Bee) {
 
 		dist := math.Sqrt(distSq)
 		attention := math.Exp(-dist * b.Config.AttentionDecay)
-		fit := b.CalculateFitness(b.Memory)
-		normFit := 1 - math.Exp(-fit * 0.1)   // smooth 0–1 mapping
-		prob := b.DanceIntensity * attention * normFit
+		var prob float64
+		if b.NeedSignalDance {
+			// signal dance: ignore fitness, just recruit
+			prob = b.DanceIntensity * attention
+		} else {
+			// normal dance: consider fitness
+			fit := b.CalculateFitness(b.Memory)
+			normFit := 1 - math.Exp(-fit * 0.1)   // smooth 0–1 mapping
+			prob = b.DanceIntensity * attention * normFit
+		}
 
 		if rand.Float64() < prob {
 			ol.Goal = b.Memory
@@ -274,9 +312,10 @@ func (b *Bee) PerformDance(onlookers []*Bee) {
 				ol.OnlookerSelectSource()
 			} else {
 				ol.Target = Coordinate{
-					X: b.Memory.X + radius*math.Cos(angle),
-					Y: b.Memory.Y + radius*math.Sin(angle),
+					X: ol.Goal.X + radius*math.Cos(angle),
+					Y: ol.Goal.Y + radius*math.Sin(angle),
 				}
+				ol.ForageTicks = 0
 			}
 			ol.Speed = b.Config.SpeedEmployed
 		}
@@ -289,7 +328,7 @@ func (b *Bee) Update(grid *SpatialGrid) {
 		b.handleDancing(grid)
 		return
 	}
-	
+
 	arrived := b.moveTowardsTarget()
 	if arrived {
 		b.handleArrival(grid)
@@ -341,10 +380,11 @@ func (b *Bee) handleDancing(grid *SpatialGrid) {
 			nearbyBees = append(nearbyBees, beePtr)
 		}
 	}
-
 	b.PerformDance(nearbyBees)
 
 	if b.DanceTicks <= 0 {
+		b.NeedSignalDance = false
+		b.WanderTicks = 0
 		b.pickNextTarget()
 	}
 }
@@ -424,10 +464,12 @@ func (b *Bee) CheckAbandonedTarget() {
 	switch b.Role {
 	case "employed":
 		b.Role = "scout"
+		b.Color = "#FFFFFF" // White for scout
 		b.SearchRadius = b.Config.SearchRadiusScout
 		b.Speed = b.Config.SpeedScout
 	case "scout":
 		b.Role = "employed"
+		b.Color = "#FFD700" // Gold for employed
 		b.SearchRadius = b.Config.SearchRadiusEmployed
 		b.Speed = b.Config.SpeedEmployed
 	}
@@ -438,9 +480,20 @@ func (b *Bee) pickNextTarget() {
 	distToHome := distance(b.Coordinate, b.Home.Coordinate)
 
 	if distToHome < b.Home.Radius {
+		danceTicks := b.Config.DanceTicksBase + rand.Intn(b.Config.DanceTicksVar)
+
+		if b.NeedSignalDance && b.Role == "scout" {
+			b.DanceTicks = danceTicks
+			b.Role = "employed" // reset to idle employed
+			b.Color = "#FFD700" // Gold for employed
+			b.Speed = b.Config.SpeedEmployed
+			b.SearchRadius = b.Config.SearchRadiusEmployed
+			return
+		}
+
 		if b.Nectar > b.Config.Epsilon {
+			b.DanceTicks = danceTicks
 			b.depositNectar()
-			b.DanceTicks = b.Config.DanceTicksBase + rand.Intn(b.Config.DanceTicksVar)
 			b.Target = b.randomHivePatrol()
 			return
 		}
@@ -462,6 +515,14 @@ func (b *Bee) pickNextTarget() {
 
 		batch := b.Goal
 		if b.ForageTicks == 0 {
+			b.WanderTicks = 0
+			if b.Role == "scout" {
+				b.Role = "employed"
+				b.Color = "#FFD700"
+				b.SearchRadius = b.Config.SearchRadiusEmployed
+				b.Speed = b.Config.SpeedEmployed
+			}
+
 			if b.Role == "employed" {
 				b.EmployedLocalSearch()
 			}
@@ -504,6 +565,24 @@ func (b *Bee) pickNextTarget() {
 		}
 	}
 
+	b.WanderTicks++
+	// employed -> scout
+	if b.Role == "employed" && b.WanderTicks > b.Config.EmployedWanderLimit {
+		b.Role = "scout"
+		b.Color = "#FFFFFF" // White for scout
+		b.Speed = b.Config.SpeedScout
+		b.SearchRadius = b.Config.SearchRadiusScout
+		b.WanderTicks = 0
+	}
+
+	// scout -> return to hive
+	if b.Role == "scout" && b.WanderTicks > b.Config.ScoutWanderLimit {
+		b.NeedSignalDance = true
+		b.Target = b.Home.Coordinate
+		b.WanderTicks = 0
+		return
+	}
+
 	lastCoord := b.Coordinate
 	if len(b.Path) > 0 {
 		lastCoord = b.Path[len(b.Path)-1]
@@ -513,7 +592,14 @@ func (b *Bee) pickNextTarget() {
 	}
 
 	for attempts < b.Config.MaxAttempts {
-		step := math.Min(LevyStep(b.Config.LevyBeta)*b.SearchRadius, 0.3*b.MapWidth)
+		levyBeta := b.Config.LevyBeta
+		if b.Role == "scout" {
+			levyBeta += 0.2
+			if levyBeta > 2.0 {
+				levyBeta = 2.0
+			}
+		}
+		step := math.Min(LevyStep(levyBeta)*b.SearchRadius, 0.3*b.MapWidth)
 		newDir := b.Direction + (rand.Float64()-0.5)*0.3
 		newX := lastCoord.X + step*math.Cos(newDir)
 		newY := lastCoord.Y + step*math.Sin(newDir)
@@ -547,12 +633,13 @@ func (b *Bee) pickNextTarget() {
 		attempts++
 	}
 
-	dirToHive := math.Atan2(b.Home.X-b.Y, b.Home.Y-b.X)
+	// If stuck by path crossing, fly randomly based on direction, even if it crosses path
+	b.Direction = rand.Float64() * 2 * math.Pi
+	step := b.SearchRadius
 	b.Target = Coordinate{
-		X: b.X + 20*math.Cos(dirToHive),
-		Y: b.Y + 20*math.Sin(dirToHive),
+		X: b.X + step*math.Cos(b.Direction),
+		Y: b.Y + step*math.Sin(b.Direction),
 	}
-	b.Direction = dirToHive
 }
 
 func (h *BeeHive) storeInHive(src *FoodSource) {

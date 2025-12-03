@@ -63,6 +63,10 @@ type SimConfigUpdate struct {
 	MaxQuality               float64
 	MaxFoodRadius            float64
 	DanceAffectsOnlookerOnly bool
+	
+	// Wandering
+	EmployedWanderLimit int
+	ScoutWanderLimit    int
 }
 
 func main() {
@@ -176,7 +180,10 @@ func startBeeColony(ctx js.Value, screenWidth, screenHeight float64, initialConf
 				
 				newConfig.MaxQuality = update.MaxQuality
 				newConfig.MaxFoodRadius = update.MaxFoodRadius
+				newConfig.MaxFoodRadius = update.MaxFoodRadius
 				newConfig.DanceAffectsOnlookerOnly = update.DanceAffectsOnlookerOnly
+				newConfig.EmployedWanderLimit = update.EmployedWanderLimit
+				newConfig.ScoutWanderLimit = update.ScoutWanderLimit
 				
 				go func() {
 					startBeeColony(ctx, screenWidth, screenHeight, &newConfig, update.PopulationSize, update.FoodCount)
