@@ -340,7 +340,50 @@
                 optimizes foraging through decentralized communication.</p>
     
             <p><i>Onlooker bee is orange, Employed bee is yellow and Scout bee is white.</i></p>
-    
+
+            <h3>Simulation Logic</h3>
+            <details>
+                <summary style="cursor: pointer; font-weight: bold; color: var(--accent-gold); margin-bottom: 10px;">Click to
+                    understand the Algorithm</summary>
+                <p>
+                    The Artificial Bee Colony (ABC) algorithm mimics the intelligent foraging behavior of honey bees. This
+                    simulation adds realistic movement physics, including <b>Levy Flight</b> for naturalistic search patterns.
+                </p>
+            
+                <h4>1. Exploration & Discovery</h4>
+                <ul>
+                    <li>Bees start as <b>Employed</b> but without a specific food source.</li>
+                    <li>They use <b>Levy Flight</b> (a pattern of short moves mixed with rare long jumps) to search the map
+                        efficiently.</li>
+                    <li>If they wander too long without finding food, they transition to <b>Scouts</b> with modified flight
+                        parameters.</li>
+                    <li>When a food source is found, the bee assigns itself to it and begins harvesting.</li>
+                </ul>
+            
+                <h4>2. Harvesting & Recruitment (Employed)</h4>
+                <ul>
+                    <li>Employed bees gather nectar and return to the hive.</li>
+                    <li>They perform a <b>Waggle Dance</b> to communicate the location and quality of their food source.</li>
+                    <li><b>Dance Intensity</b> scales with food quality – better sources result in more vigorous dances to attract
+                        more recruits.</li>
+                </ul>
+            
+                <h4>3. Recruitment (Onlookers)</h4>
+                <ul>
+                    <li><b>Onlooker Bees</b> (Orange) wait in the hive and observe dances.</li>
+                    <li>They use a probability-based selection (Roulette Wheel) to choose a source. Higher intensity dances are more
+                        likely to be chosen.</li>
+                    <li>This allows the colony to rapidly focus effort on high-quality resource patches.</li>
+                </ul>
+            
+                <h4>4. Abandonment & Signaling (Scouts)</h4>
+                <ul>
+                    <li>If a food source is depleted, the employed bee becomes a <b>Scout</b> (White).</li>
+                    <li>Scouts search randomly using a customized Levy search (more stable).</li>
+                    <li>If a Scout fails to find food after a certain time, it returns to the hive and may perform a <b>Signal
+                            Dance</b> to recruit onlookers to existing known sources, ensuring the workforce stays active.</li>
+                </ul>
+            </details>
             <h3>Colony Structure</h3>
             <dl>
                 <dt>Population</dt>
@@ -359,6 +402,10 @@
                 <dd>Flight speed of bees recruited from the hive.</dd>
                 <dt>Scout Speed</dt>
                 <dd>Flight speed of bees searching for new random sources.</dd>
+                <dt>Employed Wander Limit</dt>
+                <dd>Maximum number of ticks an Employed bee can wander before it turns into a scout.</dd>
+                <dt>Scout Wander Limit</dt>
+                <dd>Maximum number of ticks a Scout bee can wander before it returns to the hive.</dd>
                 <dt>Jitter</dt>
                 <dd>Randomness added to movement paths. Higher values mean more erratic flight.</dd>
                 <dt>Levy Beta</dt>
@@ -433,10 +480,10 @@
 
                 DanceAffectsOnlookerOnly: false,
                 DanceIntensityBase: 0.2,
-                DanceIntensityScale: 0.8,
+                DanceIntensityScale: 1.0,
                 DanceTicksBase: 50,
                 DanceTicksVar: 20,
-                AttentionDecay: 0.2,
+                AttentionDecay: 0.01,
 
                 SearchRadiusEmployed: 20.0,
                 SearchRadiusOnlooker: 20.0,
