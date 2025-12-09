@@ -59,7 +59,7 @@ func DefaultABCConfig() ABCConfig {
 		DanceTicksVar:       20,
 		Jitter:              1.5,
 		AttentionDecay:      0.01,
-		DanceAffectsOnlookerOnly: false,
+		DanceAffectsOnlookerOnly: true,
 
 		SpeedEmployed:        0.8,
 		SpeedOnlooker:        0.4, 

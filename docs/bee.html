@@ -293,7 +293,7 @@
                     <h3>Dance & Communication</h3>
                     <div class="config-item">
                         <label>
-                            <input type="checkbox" id="cfg-dance-bool">
+                            <input type="checkbox" id="cfg-dance-bool" checked>
                             Dance Affects Onlookers Only
                         </label>
                     </div>
@@ -302,12 +302,12 @@
                         <input type="range" id="cfg-dance-base" min="0.0" max="1.0" step="0.05" value="0.2">
                     </div>
                     <div class="config-item">
-                        <label>Dance Intensity Scale: <span id="lbl-dance-scale">0.8</span></label>
-                        <input type="range" id="cfg-dance-scale" min="0.0" max="2.0" step="0.1" value="0.8">
+                        <label>Dance Intensity Scale: <span id="lbl-dance-scale">1.0</span></label>
+                        <input type="range" id="cfg-dance-scale" min="0.0" max="2.0" step="0.1" value="1.0">
                     </div>
                     <div class="config-item">
-                        <label>Attention Decay: <span id="lbl-attn">0.2</span></label>
-                        <input type="range" id="cfg-attn" min="0.01" max="1.0" step="0.01" value="0.2">
+                        <label>Attention Decay: <span id="lbl-attn">0.01</span></label>
+                        <input type="range" id="cfg-attn" min="0.01" max="1.0" step="0.01" value="0.01">
                     </div>
                 </div>
                 <div style="display: flex; gap: 10px; margin-top: 15px;">
@@ -478,7 +478,7 @@
                 MaxQuality: 10.0,
                 MaxFoodRadius: 40.0,
 
-                DanceAffectsOnlookerOnly: false,
+                DanceAffectsOnlookerOnly: true,
                 DanceIntensityBase: 0.2,
                 DanceIntensityScale: 1.0,
                 DanceTicksBase: 50,
