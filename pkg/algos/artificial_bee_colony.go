@@ -332,7 +332,7 @@ func (b *Bee) Update(grid *SpatialGrid) {
 	arrived := b.moveTowardsTarget()
 	if arrived {
 		b.handleArrival(grid)
-		b.pickNextTarget()
+		b.pickNextTarget(grid)
 	}
 }
 
@@ -386,7 +386,7 @@ func (b *Bee) handleDancing(grid *SpatialGrid) {
 		b.NeedSignalDance = false
 		b.WanderTicks = 0
 		if b.Memory == nil || b.Memory.Quantity <= 0 {
-			b.pickNextTarget()
+			b.pickNextTarget(grid)
 		} else {
 			b.Target = b.Memory.Coordinate
 		}
@@ -479,7 +479,7 @@ func (b *Bee) CheckAbandonedTarget() {
 	}
 }
 
-func (b *Bee) pickNextTarget() {
+func (b *Bee) pickNextTarget(grid *SpatialGrid) {
 	attempts := 0
 	distToHome := distance(b.Coordinate, b.Home.Coordinate)
 
@@ -509,16 +509,19 @@ func (b *Bee) pickNextTarget() {
 
 	if b.Goal != nil {
 		distToFood := distance(b.Coordinate, b.Goal.Coordinate)
-		
+
+		// travel logic
 		if distToFood > b.Goal.Radius {
 			b.Target = b.Goal.Coordinate
 			b.Speed = b.Config.SpeedEmployed
 			return
 		}
 
-		batch := b.Goal
+		// arrival / decision logic
 		if b.ForageTicks == 0 {
 			b.WanderTicks = 0
+
+			// scout -> employed transition
 			if b.Role == "scout" {
 				b.Role = "employed"
 				b.Color = "#FFD700"
@@ -527,21 +530,47 @@ func (b *Bee) pickNextTarget() {
 			}
 
 			if b.Role == "employed" {
-				b.EmployedLocalSearch()
+				oldGoal := b.Goal
+				
+				b.EmployedLocalSearch(grid) 
+
+				// if goal changed, handle physical distance
+				if b.Goal != oldGoal {
+					// if the new goal is close enough to harvest immediately
+					newDist := distance(b.Coordinate, b.Goal.Coordinate)
+					if newDist > b.Goal.Radius {
+						// better neighbor -> fly to it first
+						b.Target = b.Goal.Coordinate
+						return 
+					}
+				}
 			}
+
 			b.CheckAbandonedTarget()
 			
-			if batch == b.Goal {
-				qty := batch.Quantity 
+			// goal might be nil after abandonment
+			if b.Goal == nil {
+				b.Target = b.Home.Coordinate
+				b.ForageTicks = 0
+				return
+			}
+
+			batch := b.Goal 
+			
+			// foraging logic
+			qty := batch.Quantity
+			if qty > 0 {
 				b.ForageTicks = int(math.Min(float64(qty), b.NectarCap))
 				b.Speed = 0.2
 			}
 		}
 
+		batch := b.Goal 
+		
 		if b.Nectar < b.NectarCap && b.ForageTicks > 0 && batch.Quantity > 0 {
 			b.Target = b.randomFlowerPatrol()
 			collected := b.collectNectar()
-			
+
 			spaceLeft := b.NectarCap - b.Nectar
 			if collected > spaceLeft {
 				collected = spaceLeft
@@ -549,12 +578,13 @@ func (b *Bee) pickNextTarget() {
 
 			b.Nectar += collected
 			b.ForageTicks--
-			
+
 			batch.Consume()
-			
+
 			return
 		}
 
+		// return home logic
 		if b.ForageTicks <= 0 || batch.Quantity <= 0 || b.Nectar >= b.NectarCap {
 			if b.Nectar > b.Config.Epsilon {
 				b.Memory = b.Goal
@@ -671,44 +701,94 @@ func indexOf(target *FoodSource, list []*FoodSource) int {
 	return -1
 }
 
-func (b *Bee) EmployedLocalSearch() {
-	b.Home.mu.Lock()
-	defer b.Home.mu.Unlock()
+func (b *Bee) EmployedLocalSearch(grid *SpatialGrid) {
 
-	allSources := b.Home.KnownFoodSources
-	count := len(allSources)
-
-	if b.Goal == nil || count < 2 {
-		return
-	}
-
-	var neighbor *FoodSource
-	for i := 0; i < 10; i++ {
-		neighbor = allSources[rand.Intn(count)]
-		if neighbor != b.Goal {
-			break
-		}
-	}
-
-	if neighbor == nil || neighbor == b.Goal {
-		return
-	}
+	// before talking to the hive, the bee looks around its current physical location.
+    // if sees a flower better than its current one, it switches immediately.
+	localCandidates := grid.GetNearby(b.Goal.Coordinate, b.SearchRadius * 1.5)
+    var bestLocal *FoodSource
+    bestLocalFit := -1.0
 
 	currentFit := b.CalculateFitness(b.Goal)
-	neighborFit := b.CalculateFitness(neighbor)
 
-	idx := indexOf(b.Goal, b.Home.KnownFoodSources)
+    for _, obj := range localCandidates {
+        if food, ok := obj.(*FoodSource); ok {
+            if food == b.Goal || food.Quantity <= 0 {
+                continue
+            }
+            
+            fit := b.CalculateFitness(food)
+            if fit > bestLocalFit {
+                bestLocalFit = fit
+                bestLocal = food
+            }
+        }
+    }
 
-	if idx != -1 {
-		if neighborFit > currentFit {
-			b.Goal = neighbor
-			b.ForageTicks = 0
-			b.Speed = b.Config.SpeedEmployed
-			b.Home.Trials[idx] = 0
-		} else {
-			b.Home.Trials[idx]++
-		}
-	}
+	b.Home.mu.Lock()
+    defer b.Home.mu.Unlock()
+
+    // if we found a better local flower, switch to it and register it
+    if bestLocal != nil && bestLocalFit > currentFit {
+        b.Goal = bestLocal
+        b.ForageTicks = 0
+        b.Speed = b.Config.SpeedEmployed
+        
+        known := false
+        for _, k := range b.Home.KnownFoodSources {
+            if k == bestLocal {
+                known = true
+                break
+            }
+        }
+        if !known {
+            b.Home.KnownFoodSources = append(b.Home.KnownFoodSources, bestLocal)
+            b.Home.Trials = append(b.Home.Trials, 0)
+        }
+        
+        // reset trials
+        idx := indexOf(b.Goal, b.Home.KnownFoodSources)
+        if idx != -1 {
+             b.Home.Trials[idx] = 0
+        }
+        return
+    }
+
+	// if local search yielded nothing better, compare with a random hive known location
+
+	allSources := b.Home.KnownFoodSources
+    count := len(allSources)
+
+    if b.Goal == nil || count < 2 {
+        return
+    }
+
+    var neighbor *FoodSource
+    for i := 0; i < 10; i++ { // limited loop
+        neighbor = allSources[rand.Intn(count)]
+        if neighbor != b.Goal {
+            break
+        }
+    }
+
+    if neighbor == nil || neighbor == b.Goal {
+        return
+    }
+
+    neighborFit := b.CalculateFitness(neighbor)
+    idx := indexOf(b.Goal, b.Home.KnownFoodSources)
+
+    if idx != -1 {
+        // ABC greedy selection
+        if neighborFit > currentFit {
+            b.Goal = neighbor
+            b.ForageTicks = 0
+            b.Speed = b.Config.SpeedEmployed
+            b.Home.Trials[idx] = 0
+        } else {
+            b.Home.Trials[idx]++
+        }
+    }
 }
 
 func (b *Bee) OnlookerSelectSource() {
