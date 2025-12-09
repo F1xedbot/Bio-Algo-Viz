@@ -218,7 +218,7 @@ func startBeeColony(ctx js.Value, screenWidth, screenHeight float64, initialConf
 		grid.Clear()
 		for i := range foods {
 			foods[i].Update()
-			grid.Add(&foods[i])
+			grid.Add(foods[i])
 		}
 		for i := range bees {
 			grid.Add(&bees[i])
@@ -252,7 +252,7 @@ func startBeeColony(ctx js.Value, screenWidth, screenHeight float64, initialConf
 
 		// Food
 		for i := range foods {
-			f := &foods[i]
+			f := foods[i]
 			ctx.Call("beginPath")
 			ctx.Call("arc", f.X, f.Y, f.Radius, 0, 2*math.Pi)
 			

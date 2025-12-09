@@ -385,7 +385,11 @@ func (b *Bee) handleDancing(grid *SpatialGrid) {
 	if b.DanceTicks <= 0 {
 		b.NeedSignalDance = false
 		b.WanderTicks = 0
-		b.pickNextTarget()
+		if b.Memory == nil || b.Memory.Quantity <= 0 {
+			b.pickNextTarget()
+		} else {
+			b.Target = b.Memory.Coordinate
+		}
 	}
 }
 
@@ -494,7 +498,6 @@ func (b *Bee) pickNextTarget() {
 		if b.Nectar > b.Config.Epsilon {
 			b.DanceTicks = danceTicks
 			b.depositNectar()
-			b.Target = b.randomHivePatrol()
 			return
 		}
 	}
@@ -858,16 +861,19 @@ func ApproxFlowerCount(circleRadius, flowerRadius float64) int {
 	return int(packingDensity * (circleRadius*circleRadius) / (flowerRadius*flowerRadius))
 }
 
-func SpawnFood(quantity int, width, height float64, beehive *BeeHive, config *ABCConfig) ([]FoodSource, error) {
-	var foods []FoodSource
+func SpawnFood(quantity int, width, height float64, beehive *BeeHive, config *ABCConfig) ([]*FoodSource, error) {
+    var foods []*FoodSource
 	
-	createFood := func() FoodSource {
-		loc := getRandomCoordinateExcludingHive(width, height, beehive.X, beehive.Y, beehive.Radius, config.MaxAttempts)
+	createFood := func() *FoodSource {
+		loc := getRandomCoordinateExcludingHive(
+			width, height, beehive.X, beehive.Y, beehive.Radius, config.MaxAttempts,
+		)
+
 		radius := rand.Float64()*config.MaxFoodRadius + 10.0
 		quality := rand.Float64()*config.MaxQuality + config.MinQuality
 		quant := ApproxFlowerCount(radius, 1)
 
-		return FoodSource{
+		return &FoodSource{
 			Coordinate:   loc,
 			Radius:       radius,
 			Quality:      quality,
@@ -875,16 +881,16 @@ func SpawnFood(quantity int, width, height float64, beehive *BeeHive, config *AB
 			MaxQuality:   config.MaxQuality,
 			MaxQuantity:  quant,
 			RespawnTicks: 0,
-			ID:           -1, // set by caller
+			ID:           -1,
 			Config:       config,
 		}
 	}
+
 
 	for i := 0; i < quantity; i++ {
 		f := createFood()
 		f.ID = i
 		foods = append(foods, f)
 	}
-
 	return foods, nil
 }
